@@ -1,6 +1,7 @@
 'use strict';
 var utils = require('../../lib').utils;
 var merge = require('merge');
+var multipart = require("./multipart");
 
 function mergeCommonFields(params, commonFields) {
     var _params = utils.cloneObj(params);
@@ -14,58 +15,56 @@ function mergeCommonFields(params, commonFields) {
     return _params;
 }
 
-function castType(value, type, cfg) {
-    switch (type) {
-        case 'string':
-        case 'integer':
-        case 'number':
-        case 'boolean':
-        case 'regexp':
-            value = castTypeSimpleData(value, type);
-            break;
-        case 'array':
-            doArray(value, cfg.items);
-            break;
-        case 'object':
-            doObject(value, cfg);
-            break;
-        default:
-            break;
-    }
-    return value;
+var castFunctions = {
 
-    function doArray(arr, cfg) {
+    'string': function castToString(value) {
+        return value.toString();
+    },
+    'integer': function castToInt(value) {
+        return parseInt(value, 10);
+    },
+    'number': function castToNumber(value) {
+        return parseFloat(value);
+    },
+    'boolean': function castToBoolean(value) {
+        return (value.toString() === 'true');
+    },
+    'regexp': function castToRegEx(value) {
+        return new RegExp(value);
+    },
+    'array': function castToArray(arr, cfg) {
+        cfg = cfg.items;
         if (cfg) {
             for (var i = 0; i < arr.length; i++) {
                 if (cfg.type) {
                     if (cfg.type === 'array' && cfg.items) {
-                        doArray(arr[i], cfg.items);
+                        castFunctions['array'](arr[i], cfg.items);
                     }
                     else if (cfg.type === 'object' && cfg) {
-                        doObject(arr[i], cfg);
+                        castFunctions['object'](arr[i], cfg);
                     }
                     else {
-                        arr[i] = castTypeSimpleData(arr[i], cfg.type);
+                        arr[i] = castFunctions[cfg.type](arr[i]);
                     }
                 }
             }
         }
-    }
-
-    function doObject(obj, cfg) {
+        return arr;
+    },
+    'object': function castToObject(obj, cfg) {
         var objCfg = null;
         if (cfg && (cfg.properties || (cfg.additionalProperties && typeof(cfg.additionalProperties) === 'object') )) {
             objCfg = cfg.properties || cfg.additionalProperties;
             for (var key in obj) {
                 if (Object.hasOwnProperty.call(obj, key)) {
                     if (objCfg[key].type === 'array') {
-                        doArray(obj[key], objCfg[key].items);
+                        castFunctions['array'](obj[key], objCfg[key].items);
                     }
                     else if (objCfg[key].type === 'object' || objCfg[key].patternProperties) {
-                        doObject(obj[key], objCfg[key]);
+                        castFunctions['object'](obj[key], objCfg[key]);
                     }
                     else if (objCfg[key].type) {
-                        obj[key] = castTypeSimpleData(obj[key], objCfg[key].type);
+                        obj[key] = castFunctions[objCfg[key].type](obj[key]);
                     }
                 }
             }
@@ -78,40 +77,21 @@ function castType(value, type, cfg) {
                 for (var key2 in obj) {
                     if (Object.hasOwnProperty.call(obj, key2)) {
                         if (regexp.test(key2)) {
-                            doObject(obj[key2], objCfg[patterns[i]]);
+                            castFunctions['object'](obj[key2], objCfg[patterns[i]]);
                         }
                     }
                 }
             }
         }
+        return obj;
     }
+};
 
-    function castTypeSimpleData(value, type) {
-        var castedValue = null;
-        try {
-            switch (type) {
-                case 'string':
-                    castedValue = value.toString();
-                    break;
-                case 'integer':
-                    castedValue = parseInt(value, 10);
-                    break;
-                case 'number':
-                    castedValue = parseFloat(value);
-                    break;
-                case 'boolean':
-                    castedValue = (value.toString() === 'true');
-                    break;
-                case 'regexp':
-                    castedValue = new RegExp(value);
-                    break;
-                default:
-                    break;
-            }
-        } catch (ex) {
-            castedValue = value;
-        }
-        return (castedValue !== null) ? castedValue : value;
+function castType(value, type, cfg) {
+    try {
+        return castFunctions[type](value, cfg);
+    } catch (error) {
+        return value;
     }
 }
 
@@ -145,11 +125,16 @@ module.exports = {
         sources['session'] = (obj.req.soajs && obj.req.soajs.session) ? obj.req.soajs.session.getSERVICE() : {};
 
         var paramsLocalConfig = obj.config.schema[obj.apiName];
+        if (obj.config.schema[obj.method] && obj.config.schema[obj.method][obj.apiName])
+            paramsLocalConfig = obj.config.schema[obj.method][obj.apiName];
         var paramsServiceConfigAPI = null;
         var paramsServiceConfigCommonFields = null;
         if (obj.req.soajs.servicesConfig && obj.req.soajs.servicesConfig[obj.config.serviceName] && obj.req.soajs.servicesConfig[obj.config.serviceName].SOAJS && obj.req.soajs.servicesConfig[obj.config.serviceName].SOAJS.IMFV && obj.req.soajs.servicesConfig[obj.config.serviceName].SOAJS.IMFV.schema) {
-            paramsServiceConfigAPI = obj.req.soajs.servicesConfig[obj.config.serviceName].SOAJS.IMFV.schema[obj.apiName];
             paramsServiceConfigCommonFields = obj.req.soajs.servicesConfig[obj.config.serviceName].SOAJS.IMFV.schema.commonFields;
+            if (obj.req.soajs.servicesConfig[obj.config.serviceName].SOAJS.IMFV.schema[obj.method])
+                paramsServiceConfigAPI = obj.req.soajs.servicesConfig[obj.config.serviceName].SOAJS.IMFV.schema[obj.method][obj.apiName];
+            if (!paramsServiceConfigAPI)
+                paramsServiceConfigAPI = obj.req.soajs.servicesConfig[obj.config.serviceName].SOAJS.IMFV.schema[obj.apiName];
         }
         var params = paramsLocalConfig;
         if (paramsServiceConfigAPI) {
@@ -162,96 +147,107 @@ module.exports = {
                 commonFields = merge.recursive(true, commonFields, paramsServiceConfigCommonFields);
             params = mergeCommonFields(params, commonFields);
         }
+        if (multipart.isMultipart(obj.req)) {
+            obj.inputmaskSrc.push('multipart');
+            return multipart.parse(obj.req, params, function (error, multipartData) {
+                sources['multipart'] = multipartData;
+                return parseData(error, sources, params, obj, cb);
+            });
+        } else {
+            return parseData(null, sources, params, obj, cb);
+        }
+    }
+};
 
-        var data = {};
-        var err = null;
-        var errors = [];
+function parseData(error, sources, params, obj, cb) {
+    var data = {};
+    var err = null;
+    var errors = [];
 
-        for (var param in params) {
-            if (Object.hasOwnProperty.call(params, param)) {
-                var force = false;
-                var fetched;
-                var paramConfig = params[param];
-                if (params[param].source && params[param].source.some(function (source) {
-                        var path = source.split("."), pathLength = path.length, traversed = sources;
-                        if (path[0] === 'query') {
-                            force = true;
-                        }
-                        var next = path.shift();
-                        while (next) {
-                            if (Object.hasOwnProperty.call(traversed, next)) {
-                                traversed = traversed[next];
-                                next = path.shift();
-                            }
-                            else {
-                                return;
-                            }
-                        }
-                        if (pathLength === 1) {
-                            if (Object.hasOwnProperty.call(traversed, param)) {
-                                traversed = traversed[param];
-                            } else {
-                                return;
-                            }
-                        }
-
-                        fetched = traversed;
-                        return fetched != null;
-                    })) {
-                    data[param] = fetched;
-                    var validation;
-                    var type = paramConfig.validation.type;
-
-                    //apply type casting if headers content-type is not JSON, otherwise inputs are received as strings
-                    if (force || !obj.req.headers['content-type'] || obj.req.headers['content-type'].indexOf('application/json') === -1) {
-                        data[param] = castType(data[param], type, paramConfig.validation);
+    for (var param in params) {
+        if (Object.hasOwnProperty.call(params, param)) {
+            var force = false;
+            var fetched;
+            var paramConfig = params[param];
+            if (params[param].source && params[param].source.some(function (source) {
+                    var path = source.split("."), pathLength = path.length, traversed = sources;
+                    if (path[0] === 'query') {
+                        force = true;
                     }
-
-                    if (utils.validProperty(paramConfig, "validation")) {
-                        if (!(validation = obj.configValidator.validate(data[param], paramConfig.validation)).valid) {
-                            if (!err) {
-                                err = {};
-                            }
-                            if (err[173]) {
-                                err[173] += ", " + param;
-                            } else {
-                                err[173] = "Validation failed for field: " + param;
-                                validation.errors.forEach(function (validationErr) {
-                                    err[173] += " -> The parameter '" + param + "' failed due to: " + validationErr.stack;
-                                });
-                            }
+                    var next = path.shift();
+                    while (next) {
+                        if (Object.hasOwnProperty.call(traversed, next)) {
+                            traversed = traversed[next];
+                            next = path.shift();
+                        }
+                        else {
+                            return;
                         }
                     }
+                    if (pathLength === 1) {
+                        if (Object.hasOwnProperty.call(traversed, param)) {
+                            traversed = traversed[param];
+                        } else {
+                            return;
+                        }
+                    }
+
+                    fetched = traversed;
+                    return fetched != null;
+                })) {
+                data[param] = fetched;
+                var validation;
+                var type = paramConfig.validation.type;
+
+                //apply type casting if headers content-type is not JSON, otherwise inputs are received as strings
+                if (force || !obj.req.headers['content-type'] || obj.req.headers['content-type'].indexOf('application/json') === -1) {
+                    data[param] = castType(data[param], type, paramConfig.validation);
                 }
-                else {
-                    if (Object.hasOwnProperty.call(paramConfig, "default")) {
-                        data[param] = paramConfig.default;
-                    } else {
-                        if (!utils.validProperty(paramConfig, "required") || !paramConfig.required) {
-                            continue;
-                        }
+
+                if (utils.validProperty(paramConfig, "validation")) {
+                    if (!(validation = obj.configValidator.validate(data[param], paramConfig.validation)).valid) {
                         if (!err) {
                             err = {};
                         }
-                        if (err[172]) {
-                            err[172] += ", " + param;
+                        if (err[173]) {
+                            err[173] += ", " + param;
                         } else {
-                            err [172] = "Missing required field: " + param;
+                            err[173] = "Validation failed for field: " + param;
+                            validation.errors.forEach(function (validationErr) {
+                                err[173] += " -> The parameter '" + param + "' failed due to: " + validationErr.stack;
+                            });
                         }
                     }
                 }
             }
-        }
-        if (err) {
-            for (var e in err) {
-                if (Object.hasOwnProperty.call(err, e)) {
-                    errors.push({"code": Number(e), "msg": err[e]});
+            else {
+                if (Object.hasOwnProperty.call(paramConfig, "default")) {
+                    data[param] = paramConfig.default;
+                } else {
+                    if (!utils.validProperty(paramConfig, "required") || !paramConfig.required) {
+                        continue;
+                    }
+                    if (!err) {
+                        err = {};
+                    }
+                    if (err[172]) {
+                        err[172] += ", " + param;
+                    } else {
+                        err [172] = "Missing required field: " + param;
+                    }
                 }
             }
         }
-        if (errors.length === 0) {
-            errors = null;
-        }
-        return cb(errors, data);
     }
-};
+    if (err) {
+        for (var e in err) {
+            if (Object.hasOwnProperty.call(err, e)) {
+                errors.push({"code": Number(e), "msg": err[e]});
+            }
+        }
+    }
+    if (errors.length === 0) {
+        errors = null;
+    }
+    return cb(errors, data);
+}
