@@ -26,6 +26,12 @@ module.exports = {
         }
     ],
     "credentials": null,
+    "streaming": {
+        "batchSize" : 10000,
+        "colName":{
+            "batchSize" : 10000
+        }
+    },
     "URLParam": {
         "connectTimeoutMS": 0,
         "socketTimeoutMS": 0,
@@ -36,7 +42,8 @@ module.exports = {
     "extraParam": {
         "db": {
             "native_parser": true,
-            "w": "majority"
+            "w": "majority",
+            "bufferMaxEntries": 0
         },
         "replSet": {
             "ha": true,

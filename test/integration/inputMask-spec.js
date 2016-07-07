@@ -467,6 +467,7 @@ var lib = {
         console.log("**** start service");
 		var config = {
 			"serviceName": serviceName,
+			"servicePort": 4010,
 			"errors": {},
 			"schema": {}
 		};
@@ -518,6 +519,7 @@ var lib = {
 		console.log("**** start service2");
 		var config = {
 			"serviceName": serviceName2,
+			"servicePort": 4018,
 			"requestTimeout": 30,
 			"requestTimeoutRenewal": 5,
 			"extKeyRequired": true,
@@ -566,11 +568,14 @@ var lib = {
 describe('testing inputMask', function() {
 
 	before(function(done) {
-		async.series([lib.startTestService2, lib.startTestService, lib.startController], function(err) {
+		//async.series([lib.startTestService2, lib.startTestService, lib.startController], function(err) {
+		async.series([lib.startController, lib.startTestService2, lib.startTestService], function(err) {
 			//lib.startTestService(function(err) {
 			console.log(err);
 			assert.ifError(err);
+			setTimeout(function() {
 			done();
+			}, 500);
 		});
 	});
 	after(function(done) {
@@ -635,7 +640,7 @@ describe('testing inputMask', function() {
 			}, function(err, body) {
 				assert.ifError(err);
 				assert.ok(body);
-				console.log (body)
+				console.log (body);
 				assert.equal(body.result, false);
 				done();
 			});
@@ -652,7 +657,7 @@ describe('testing inputMask', function() {
 			}, function(err, body) {
 				assert.ifError(err);
 				assert.ok(body);
-				console.log (body)
+				console.log (body);
 				assert.equal(body.result, true);
 				assert.deepEqual(body.data, {
 					name: 'john',

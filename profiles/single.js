@@ -10,19 +10,24 @@ module.exports = {
         }
     ],
     "credentials": null,
+    "streaming": {
+        "batchSize" : 10000,
+        "colName":{
+            "batchSize" : 10000
+        }
+    },
     "URLParam": {
         "connectTimeoutMS": 0,
         "socketTimeoutMS": 0,
-        "maxPoolSize": 2,
         "wtimeoutMS": 0,
         "slaveOk": true
     },
     "extraParam": {
         "db": {
-            "native_parser": true
+            "native_parser": true,
+            "bufferMaxEntries": 0
         },
         "server": {
-            "auto_reconnect": true
         }
     }
 };
