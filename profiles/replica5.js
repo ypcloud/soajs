@@ -33,22 +33,17 @@ module.exports = {
         }
     },
     "URLParam": {
-        "connectTimeoutMS": 0,
-        "socketTimeoutMS": 0,
-        "maxPoolSize": 5,
-        "wtimeoutMS": 0,
-        "slaveOk": true
+        "maxPoolSize": 2,
+        "readPreference": "secondaryPreferred",
+        "replicaSet": "rs",
+        "w": "majority"
     },
     "extraParam": {
         "db": {
-            "native_parser": true,
-            "w": "majority",
             "bufferMaxEntries": 0
         },
         "replSet": {
-            "ha": true,
-            "readPreference": "secondaryPreferred",
-            "rs_name": "rs-soa"
+            "ha": true
         }
     }
 };

@@ -17,17 +17,11 @@ module.exports = {
         }
     },
     "URLParam": {
-        "connectTimeoutMS": 0,
-        "socketTimeoutMS": 0,
-        "wtimeoutMS": 0,
-        "slaveOk": true
+        "maxPoolSize": 2
     },
     "extraParam": {
         "db": {
-            "native_parser": true,
             "bufferMaxEntries": 0
-        },
-        "server": {
         }
     }
 };

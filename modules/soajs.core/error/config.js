@@ -16,7 +16,8 @@ module.exports = {
         '135': "Error occurred while redirecting your request to the service",
         '136': "Controller catched an error while redirecting to service.",
 
-        '15x': "SERVICE CORE",
+        '14x': "SERVICE CORE",
+        '141': "Unable to start the service.",
         '150': "Something blew up @ service core!",
         '151': "You are trying to reach an unknown rest service!",
         '152': "Unable to load you product package information. Check provision configuration for this key.",
@@ -48,6 +49,7 @@ module.exports = {
         "193": "Unable to find the record to version it",
         "194": "Invalid record version provided to Mongo",
         "195": "Invalid DB Config. please send a valid DB config to MongoDriver's constructor",
+        "196": "Invalid ES Config. please send a valid ES config to ESDriver's constructor",
 
         '20x': "PROVISION",
         '200': 'You need to provide an external key.',
