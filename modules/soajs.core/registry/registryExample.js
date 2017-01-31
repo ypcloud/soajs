@@ -66,7 +66,6 @@ var regExample = {
             maxLogCount: 5,
             autoRegisterService: true
         },
-        agent: {topologyDir: '/opt/soajs/'},
         key: {algorithm: 'aes256', password: 'soajs key lal massa'},
         logger: {src: true, level: 'debug', formatter: [Object]},
         cors: {
@@ -78,7 +77,7 @@ var regExample = {
             maxage: 1728000
         },
         oauth: {grants: [Object], debug: false},
-        ports: {controller: 4000, maintenanceInc: 1000, randomInc: 100},
+        ports: {maintenanceInc: 1000},
         cookie: {secret: 'this is a secret sentence'},
         session: {
             name: 'soajsID',

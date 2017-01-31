@@ -210,7 +210,7 @@ var build = {
                 "group": "controller",
                 "maxPoolSize": registryDBInfo.ENV_schema.services.controller.maxPoolSize,
                 "authorization": registryDBInfo.ENV_schema.services.controller.authorization,
-                "port": registryDBInfo.ENV_schema.services.config.ports.controller,
+                "port": registryDBInfo.ENV_schema.services.config.controller.port,
                 "requestTimeout": registryDBInfo.ENV_schema.services.controller.requestTimeout || null,
                 "requestTimeoutRenewal": registryDBInfo.ENV_schema.services.controller.requestTimeoutRenewal || null
             }
