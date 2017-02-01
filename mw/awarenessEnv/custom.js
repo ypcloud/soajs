@@ -18,12 +18,9 @@ var fetchControllerHosts = function (next) {
     core.registry.loadOtherEnvControllerHosts(function (error, hosts) {
         if (error)
             param.log.warn("Failed to load controller hosts. reusing from previous load. Reason: " + error.message);
-        else {
+        else
             controllerHosts = hosts;
-            controllerHosts.forEach(function (oneHost) {
-                oneHost.name = "controller";
-            });
-        }
+
         param.log.info("Self Awareness ENV reloaded controller hosts. next reload is in [" + registry.serviceConfig.awareness.autoRelaodRegistry + "] milliseconds");
         setTimeout(fetchControllerHosts, registry.serviceConfig.awareness.autoRelaodRegistry);
 

@@ -88,90 +88,85 @@ var regExample = {
         }
     },
     custom: {},
-    services: {
-        controller: {
-            group: 'controller',
-            maxPoolSize: 100,
-            authorization: true,
-            port: 4000,
-            requestTimeout: 30,
-            requestTimeoutRenewal: null,
-            hosts: [Object],
-            newServiceOrHost: true
+    "services": {
+        "controller": {
+            "group": "controller",
+            "maxPoolSize": 100,
+            "authorization": true,
+            "port": 4000,
+            "requestTimeout": 30,
+            "requestTimeoutRenewal": null,
+            "hosts": {
+                "1": ["192.168.2.33"],
+                "latest": 1
+            },
+            "newServiceOrHost": true
         },
-        urac: {
-            group: 'service',
-            port: 4001,
-            versions: [Object],
-            requestTimeoutRenewal: null,
-            requestTimeout: null,
-            version: 1,
-            extKeyRequired: true,
-            awareness: false
+        "urac": {
+            "group": "service",
+            "port": 4001,
+            "versions": {
+                "1": {
+                    "apis": [],
+                    "extKeyRequired": true
+                }
+            },
+            "requestTimeoutRenewal": null,
+            "requestTimeout": null,
+            "version": 1,
+            "extKeyRequired": true,
+            "awareness": false,
+            "hosts": {
+                "1": ["127.0.0.1", "192.168.2.33"],
+                "latest": 1
+            }
         },
-        oauth: {
-            group: 'service',
-            port: 4002,
-            versions: [Object],
-            requestTimeoutRenewal: null,
-            requestTimeout: null,
-            version: 1,
-            extKeyRequired: true,
-            awareness: false
-        },
-        example01: {
-            group: 'service',
-            port: 4010,
-            versions: [Object],
-            requestTimeoutRenewal: null,
-            requestTimeout: null,
-            version: 1,
-            extKeyRequired: false,
-            awareness: false
-        },
-        example02: {
-            group: 'service',
-            port: 4011,
-            versions: [Object],
-            requestTimeoutRenewal: null,
-            requestTimeout: null,
-            version: 1,
-            extKeyRequired: true,
-            awareness: false
-        },
-        example06: {
-            group: 'service',
-            port: 4018,
-            versions: [Object],
-            requestTimeoutRenewal: null,
-            requestTimeout: null,
-            version: 1,
-            extKeyRequired: true,
-            awareness: false
-        },
-        helloworld: {
-            group: 'No Group Service',
-            port: 4020,
-            versions: [Object],
-            requestTimeoutRenewal: null,
-            requestTimeout: null,
-            version: 1,
-            extKeyRequired: false,
-            awareness: true
-        },
-        example03: {
-            group: 'exampleGroup',
-            port: 4012,
-            versions: [Object],
-            requestTimeoutRenewal: 2,
-            requestTimeout: 2,
-            version: 1,
-            extKeyRequired: true,
-            awareness: true
+        "oauth": {
+            "group": "service",
+            "port": 4002,
+            "versions": {
+                "1": {
+                    "apis": [],
+                    "extKeyRequired": true
+                }
+            },
+            "requestTimeoutRenewal": null,
+            "requestTimeout": null,
+            "version": 1,
+            "extKeyRequired": true,
+            "awareness": false,
+            "hosts": {
+                "1": ["127.0.0.1", "192.168.2.33"],
+                "latest": 1
+            }
         }
     },
-    daemons: {
-        helloDaemon: {group: 'No Group Daemon', port: 4200, versions: [Object]},
-        helloDaemonCron: {group: 'No Group Daemon', port: 4201, versions: [Object]}
+    "daemons": {
+        "helloDaemon": {
+            "group": "daemon",
+            "port": 4200,
+            "versions": {
+                "1": {
+                    "jobs": []
+                }
+            },
+            "hosts": {
+                "1": ["127.0.0.1"],
+                "latest": 1
+            }
+        },
+        "helloDaemonCron": {
+            "group": "daemon",
+            "port": 4201,
+            "versions": {
+                "1": {
+                    "jobs": []
+                }
+            },
+            "hosts": {
+                "1": ["127.0.0.1"],
+                "latest": 1
+            }
+        }
     }
 };

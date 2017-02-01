@@ -38,34 +38,50 @@ module.exports = {
             if (envRecord && JSON.stringify(envRecord) !== '{}') {
                 obj['ENV_schema'] = envRecord;
             }
-            mongo.find(servicesCollectionName, function (error, servicesRecords) {
+            mongo.findOne(environmentCollectionName, {'code': "SHARED"}, function (error, envSharedRecord) {
                 if (error) {
                     return callback(error);
                 }
-                if (servicesRecords && Array.isArray(servicesRecords) && servicesRecords.length > 0) {
-                    obj['services_schema'] = servicesRecords;
+                if (envSharedRecord && JSON.stringify(envSharedRecord) !== '{}') {
+                    if (obj['ENV_schema'].services && envSharedRecord && envSharedRecord.services) {
+                        obj['ENV_schema'].services.controller = envSharedRecord.services.controller;
+                        if (obj['ENV_schema'].services.config && envSharedRecord.services.config) {
+                            obj['ENV_schema'].services.config.awareness = envSharedRecord.services.config.awareness;
+                            obj['ENV_schema'].services.config.cors = envSharedRecord.services.config.cors;
+                            obj['ENV_schema'].services.config.oauth = envSharedRecord.services.config.oauth;
+                            obj['ENV_schema'].services.config.ports = envSharedRecord.services.config.ports;
+                        }
+                    }
                 }
-                mongo.find(daemonsCollectionName, function (error, daemonsRecords) {
+                mongo.find(servicesCollectionName, function (error, servicesRecords) {
                     if (error) {
                         return callback(error);
                     }
-                    if (servicesRecords && Array.isArray(daemonsRecords) && daemonsRecords.length > 0) {
-                        obj['daemons_schema'] = daemonsRecords;
+                    if (servicesRecords && Array.isArray(servicesRecords) && servicesRecords.length > 0) {
+                        obj['services_schema'] = servicesRecords;
                     }
-                    if (process.env.SOAJS_DEPLOY_HA){
-                        return callback(null, obj);
-                    }
-                    else {
-                        mongo.find(hostCollectionName, {'env': envCode}, function (error, hostsRecords) {
-                            if (error) {
-                                return callback(error);
-                            }
-                            if (hostsRecords && Array.isArray(hostsRecords) && hostsRecords.length > 0) {
-                                obj['ENV_hosts'] = hostsRecords;
-                            }
+                    mongo.find(daemonsCollectionName, function (error, daemonsRecords) {
+                        if (error) {
+                            return callback(error);
+                        }
+                        if (servicesRecords && Array.isArray(daemonsRecords) && daemonsRecords.length > 0) {
+                            obj['daemons_schema'] = daemonsRecords;
+                        }
+                        if (process.env.SOAJS_DEPLOY_HA) {
                             return callback(null, obj);
-                        });
-                    }
+                        }
+                        else {
+                            mongo.find(hostCollectionName, {'env': envCode}, function (error, hostsRecords) {
+                                if (error) {
+                                    return callback(error);
+                                }
+                                if (hostsRecords && Array.isArray(hostsRecords) && hostsRecords.length > 0) {
+                                    obj['ENV_hosts'] = hostsRecords;
+                                }
+                                return callback(null, obj);
+                            });
+                        }
+                    });
                 });
             });
         });

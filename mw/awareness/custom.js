@@ -2,7 +2,6 @@
 
 var request = require('request');
 var async = require('async');
-
 var core = require('../../modules/soajs.core');
 
 var regEnvironment = (process.env.SOAJS_ENV || "dev");
