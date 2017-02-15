@@ -23,84 +23,232 @@ module.exports = function () {
         }
 
         var parsedUrl = url.parse(req.url, true);
-
         var serviceInfo = parsedUrl.pathname.split('/');
-        var service_nv = serviceInfo[1];
-        var service_n = service_nv;
-        var service_v = null;
-        var index = service_nv.indexOf(":");
-        if (index !== -1) {
-            service_v = parseInt(service_nv.substr(index + 1));
-            if (isNaN(service_v)) {
-                service_v = null;
-                req.soajs.log.warn('Service version must be integer: [' + service_nv + ']');
-            }
-            service_n = service_nv.substr(0, index);
+	    var service_nv = serviceInfo[1];
+        switch(service_nv){
+	        case "proxy":
+	        	proxyRequest();
+	        	break;
+	        default:
+		        proceedToService();
+	        	break;
         }
-        extractBuildParameters(req, service_n, service_nv, service_v, parsedUrl.path, function(error, parameters){
-        	if(error){
-		        req.soajs.log.fatal(error);
-		        return req.soajs.controllerResponse(core.error.getError(130));
+	
+	    /**
+	     * redirect the request to another SOAJ microservice
+	     */
+	    function proceedToService(){
+	        var service_n = service_nv;
+	        var service_v = null;
+	        var index = service_nv.indexOf(":");
+	        if (index !== -1) {
+		        service_v = parseInt(service_nv.substr(index + 1));
+		        if (isNaN(service_v)) {
+			        service_v = null;
+			        req.soajs.log.warn('Service version must be integer: [' + service_nv + ']');
+		        }
+		        service_n = service_nv.substr(0, index);
 	        }
-	
-	        if (!parameters) {
-		        req.soajs.log.fatal("url[", req.url, "] couldn't be matched to a service or the service entry in registry is missing [port || hosts]");
-		        return req.soajs.controllerResponse(core.error.getError(130));
-	        }
-	
-	        req.soajs.controller.serviceParams = parameters;
-	
-	        var d = domain.create();
-	        d.add(req);
-	        d.add(res);
-	        d.on('error', function (err) {
-		        req.soajs.log.error('Error', err, req.url);
-		        try {
-			        req.soajs.log.error('Controller domain error, trying to dispose ...');
-			        res.on('close', function () {
+	        extractBuildParameters(req, service_n, service_nv, service_v, parsedUrl.path, function(error, parameters){
+		        if(error){
+			        req.soajs.log.fatal(error);
+			        return req.soajs.controllerResponse(core.error.getError(130));
+		        }
+		
+		        if (!parameters) {
+			        req.soajs.log.fatal("url[", req.url, "] couldn't be matched to a service or the service entry in registry is missing [port || hosts]");
+			        return req.soajs.controllerResponse(core.error.getError(130));
+		        }
+		
+		        req.soajs.controller.serviceParams = parameters;
+		
+		        var d = domain.create();
+		        d.add(req);
+		        d.add(res);
+		        d.on('error', function (err) {
+			        req.soajs.log.error('Error', err, req.url);
+			        try {
+				        req.soajs.log.error('Controller domain error, trying to dispose ...');
+				        res.on('close', function () {
+					        d.dispose();
+				        });
+			        } catch (err) {
+				        req.soajs.log.error('Controller domain error, unable to dispose: ', err, req.url);
 				        d.dispose();
-			        });
-		        } catch (err) {
-			        req.soajs.log.error('Controller domain error, unable to dispose: ', err, req.url);
-			        d.dispose();
+			        }
+		        });
+		        var passportLogin = false;
+		        if (serviceInfo[1] === "urac"){
+			        if (serviceInfo[2] === "passport" && serviceInfo[3] === "login")
+				        passportLogin = true;
 		        }
-	        });
-	        var passportLogin = false;
-	        if (serviceInfo[1] === "urac"){
-		        if (serviceInfo[2] === "passport" && serviceInfo[3] === "login")
-			        passportLogin = true;
-	        }
-	        if (parameters.extKeyRequired) {
-		        var key = req.headers.key || parsedUrl.query.key;
-		        if (!key) {
-			        return req.soajs.controllerResponse(core.error.getError(132));
-		        }
-		        core.key.getInfo(key, req.soajs.registry.serviceConfig.key, function (err, keyObj) {
-			        if (err) {
-				        req.soajs.log.warn(err.message);
+		        if (parameters.extKeyRequired) {
+			        var key = req.headers.key || parsedUrl.query.key;
+			        if (!key) {
 				        return req.soajs.controllerResponse(core.error.getError(132));
 			        }
-			        if (!req.headers.key) {
-				        req.headers.key = key;
-			        }
+			        core.key.getInfo(key, req.soajs.registry.serviceConfig.key, function (err, keyObj) {
+				        if (err) {
+					        req.soajs.log.warn(err.message);
+					        return req.soajs.controllerResponse(core.error.getError(132));
+				        }
+				        if (!req.headers.key) {
+					        req.headers.key = key;
+				        }
+				        if (passportLogin)
+					        req.soajs.controller.gotoservice = simpleRTS;
+				        else
+					        req.soajs.controller.gotoservice = redirectToService;
+				
+				        next();
+			        });
+		        }
+		        else {
 			        if (passportLogin)
 				        req.soajs.controller.gotoservice = simpleRTS;
 			        else
 				        req.soajs.controller.gotoservice = redirectToService;
-			
 			        next();
-		        });
-	        }
-	        else {
-		        if (passportLogin)
-			        req.soajs.controller.gotoservice = simpleRTS;
-		        else
-			        req.soajs.controller.gotoservice = redirectToService;
-		        next();
-	        }
-        });
+		        }
+	        });
+        }
+	
+	    /**
+	     * proxy the request to a controller in another environment
+	     */
+	    function proxyRequest(){
+		    /*
+		     get ext key for remote env requested
+		     */
+		    var tenant = req.soajs.tenant;
+		    var remoteENV = (parsedUrl.query) ? parsedUrl.query.__env : req.headers.__env;
+		    remoteENV = remoteENV.toUpperCase();
+	    	
+		    var requestedRoute;
+		    //check if requested route is provided as query param
+	    	if(req.query && req.query.proxyRoute){
+			    requestedRoute = decodeURIComponent(req.query.proxyRoute);
+			    delete req.query.proxyRoute;
+		    }
+            //possible requested route is provided as path param
+		    else if(parsedUrl.pathname.replace(/^\/proxy/,'') !== ''){
+	    		requestedRoute = parsedUrl.pathname.replace(/^\/proxy/, '');
+		    }
+		    
+		    //stop if no requested path was found
+		    if(!requestedRoute){
+			    return req.soajs.controllerResponse(core.error.getError(139));
+		    }
+		    req.soajs.log.debug("attempting to redirect to: " + requestedRoute + " in " + remoteENV + " Environment.");
+		    
+		    //get extKey for remote environment for this tenant
+		    var remoteExtKey = findExtKeyForEnvironment(tenant, remoteENV);
+		    
+		    //no key found
+		    if(!remoteExtKey){
+			    req.soajs.log.fatal("No remote key found for tenant: " + tenant.code + " in environment: " + remoteENV);
+			    return req.soajs.controllerResponse(core.error.getError(137));
+		    }
+		    else{
+		    	//proceed with proxying the request
+			    proxyRequestToRemoteEnv(req, res, remoteENV, remoteExtKey, requestedRoute);
+		    }
+        }
     };
 };
+
+/**
+ * function that finds if this tenant has a dashboard access extkey for requested env code
+ * @param {Object} tenant
+ * @param {String} env
+ * @returns {null|String}
+ */
+function findExtKeyForEnvironment(tenant, env){
+	//loop in tenant applications
+	tenant.applications.forEach(function(oneApplication){
+		
+		//loop in tenant keys
+		oneApplication.keys.forEach(function(oneKey){
+			
+			//loop in tenant ext keys
+			oneKey.extKeys.forEach(function(oneExtKey){
+				
+				//get the ext key for the request environment who also has dashboardAccess true
+				//note: only one extkey per env has dashboardAccess true, simply find it and break
+				if(oneExtKey.env && oneExtKey.env === env && oneExtKey.dashboardAccess){
+					return oneExtKey.key;
+				}
+			});
+		});
+	});
+		
+	return null;
+}
+
+/**
+ * load controller information for remote requested environment and proxy the request to its controller.
+ *
+ * @param {Object} req
+ * @param {Object} res
+ * @param {String} remoteENV
+ * @param {String} remoteExtKey
+ * @param {String} requestedRoute
+ */
+function proxyRequestToRemoteEnv(req, res, remoteENV, remoteExtKey, requestedRoute){
+	//get remote env controller
+	req.soajs.awarenessEnv.getHost(remoteENV, function (host) {
+		if (!host) {
+			return req.soajs.controllerResponse(core.error.getError(138));
+		}
+		
+		//get remote env controller port
+		core.registry.loadByEnv({ "envCode": remoteENV }, function (err, reg) {
+			if (err) {
+				req.soajs.log.error(err);
+				return req.soajs.controllerResponse(core.error.getError(207));
+			}
+			else {
+				//formulate request and pipe
+				var port = reg.services.controller.port;
+				var myUri = 'http://' + host + ':' + port + requestedRoute;
+				
+				var requestConfig = {
+					'uri': myUri,
+					'method': req.method,
+					'timeout': 1000 * 3600,
+					'jar': false,
+					'headers': req.headers
+				};
+				//add remote ext key in headers
+				requestConfig.headers.key = remoteExtKey;
+				
+				//add remaining query params
+				if (req.query && Object.keys(req.query).length > 0) {
+					requestConfig.qs = req.query;
+				}
+				req.soajs.log.debug(requestConfig);
+				
+				//proxy request
+				var proxy = request(requestConfig);
+				proxy.on('error', function (error) {
+					req.soajs.log.error(error);
+					try {
+						return req.soajs.controllerResponse(core.error.getError(135));
+					} catch (e) {
+						req.soajs.log.error(e);
+					}
+				});
+				
+				if (req.method === 'POST' || req.method === 'PUT') {
+					req.pipe(proxy).pipe(res);
+				}
+				else {
+					proxy.pipe(res);
+				}
+			}
+		});
+	});
+}
 
 /**
  *
